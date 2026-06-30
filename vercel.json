@@ -16,6 +16,15 @@
       }
     }
   ],
+  "env": {
+    "USE_SQLITE": "true",
+    "USE_REDIS": "false",
+    "DATASETS_DIR": "/tmp/datasets",
+    "REPORTS_DIR": "/tmp/reports",
+    "MAST_CACHE_DIR": "/tmp/mast_cache",
+    "SQLITE_URL": "sqlite+aiosqlite:////tmp/horizon.db",
+    "MAX_UPLOAD_SIZE_MB": "4"
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
