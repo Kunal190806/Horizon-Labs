@@ -9,7 +9,7 @@
       }
     },
     {
-      "src": "backend/main.py",
+      "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
         "excludeFiles": "{frontend/**,tests/**,docs/**,docker/**,database/**,*.md}"
@@ -28,7 +28,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/backend/main.py"
+      "destination": "/api/index.py"
     },
     {
       "source": "/(.*)",

@@ -1,0 +1,52 @@
+# ─── Web Framework ────────────────────────────────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+python-multipart==0.0.9
+websockets==12.0
+httpx==0.27.0
+
+# ─── Database ─────────────────────────────────────────────────────────────────
+sqlalchemy[asyncio]>=2.0.36
+# asyncpg==0.29.0
+aiosqlite==0.20.0
+alembic==1.13.1
+# psycopg2-binary==2.9.9  # Requires PostgreSQL headers (only needed for Docker/PostgreSQL mode)
+
+# ─── Cache ────────────────────────────────────────────────────────────────────
+redis[asyncio]==5.0.4
+
+# ─── Config / Validation ──────────────────────────────────────────────────────
+pydantic
+pydantic-settings
+python-dotenv==1.0.1
+
+# ─── Scientific Core ──────────────────────────────────────────────────────────
+numpy
+# scipy removed (using custom running mean & heuristics fallbacks)
+# pandas removed (using pure python csv parser)
+# astropy removed (fits parsing disabled on vercel)
+# astroquery removed (mast search disabled on vercel)
+
+# ─── Astronomy / Transit Detection ───────────────────────────────────────────
+# lightkurve removed (mast download disabled on vercel)
+# transitleastsquares removed (using BLS fallback)
+# wotan removed (using running mean fallback)
+
+# ─── Machine Learning ────────────────────────────────────────────────────────
+# scikit-learn removed to save space (using heuristic fallback)
+
+# ─── Visualization (server-side) ─────────────────────────────────────────────
+# plotly and matplotlib removed (JSON dicts used natively)
+
+# ─── PDF Report Generation ───────────────────────────────────────────────────
+# reportlab and Pillow removed to save space
+
+# ─── FITS File Handling ───────────────────────────────────────────────────────
+# astropy removed
+
+# ─── Async / Task Queue ───────────────────────────────────────────────────────
+aiofiles==23.2.1
+anyio==4.4.0
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+structlog==24.2.0
