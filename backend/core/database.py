@@ -53,6 +53,9 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
+_db_initialized = False
+
+
 async def init_db() -> None:
     """Create all tables (idempotent)."""
     # Import models to register them with Base.metadata
@@ -61,6 +64,18 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables initialized.")
+    
+    # Create required directories (lifespan doesn't run on Vercel serverless)
+    import os
+    for d in [settings.datasets_dir, settings.model_dir, settings.reports_dir, settings.mast_cache_dir]:
+        os.makedirs(d, exist_ok=True)
+
+
+async def ensure_db_initialized():
+    global _db_initialized
+    if not _db_initialized:
+        await init_db()
+        _db_initialized = True
 
 
 async def close_db() -> None:
@@ -72,6 +87,7 @@ async def close_db() -> None:
 @asynccontextmanager
 async def get_session_ctx() -> AsyncGenerator[AsyncSession, None]:
     """Context-manager for a single database session."""
+    await ensure_db_initialized()
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -83,6 +99,7 @@ async def get_session_ctx() -> AsyncGenerator[AsyncSession, None]:
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency that yields a database session."""
+    await ensure_db_initialized()
     async with AsyncSessionLocal() as session:
         try:
             yield session
