@@ -166,28 +166,39 @@ async def upload_dataset(
         if suffix in (".csv", ".csv.gz", ".gz"):
             import csv
             import gzip
-            import io
+            
+            # Stream from disk instead of loading everything into memory
             if suffix in (".csv.gz", ".gz"):
-                raw = gzip.decompress(content)
-                text = raw.decode("utf-8", errors="replace")
+                f_in = gzip.open(fpath, "rt", encoding="utf-8", errors="replace")
             else:
-                text = content.decode("utf-8", errors="replace")
-            reader = csv.reader(io.StringIO(text))
-            header = next(reader, None)
-            if header:
-                time_idx = next((i for i, c in enumerate(header) if c.lower() in ["time", "t", "bjd", "jd"]), 0)
-                time_arr = []
-                for row in reader:
-                    if len(row) > time_idx:
-                        try:
-                            val = float(row[time_idx])
-                            time_arr.append(val)
-                        except ValueError:
-                            pass
-                if time_arr:
-                    num_points = len(time_arr)
-                    time_start = float(time_arr[0])
-                    time_end = float(time_arr[-1])
+                f_in = open(fpath, "r", encoding="utf-8", errors="replace")
+                
+            with f_in as f:
+                reader = csv.reader(f)
+                header = next(reader, None)
+                if header:
+                    time_idx = next((i for i, c in enumerate(header) if c.lower() in ["time", "t", "bjd", "jd"]), 0)
+                    
+                    # Count points and track min/max time without storing the whole array
+                    count = 0
+                    first_time = None
+                    last_time = None
+                    
+                    for row in reader:
+                        if len(row) > time_idx:
+                            try:
+                                val = float(row[time_idx])
+                                if count == 0:
+                                    first_time = val
+                                last_time = val
+                                count += 1
+                            except ValueError:
+                                pass
+                                
+                    if count > 0:
+                        num_points = count
+                        time_start = first_time
+                        time_end = last_time
         elif suffix in {".fits", ".fit"}:
             raise HTTPException(400, "FITS file parsing is disabled in Vercel Serverless environment due to bundle size limits. Please upload a CSV file.")
     except Exception as e:

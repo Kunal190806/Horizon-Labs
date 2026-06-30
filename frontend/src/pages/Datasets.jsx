@@ -137,8 +137,10 @@ function UploadPanel({ onUpload }) {
     accept: {
       'application/fits':   ['.fits', '.fit'],
       'text/csv':           ['.csv'],
-      'application/gzip':   ['.gz'],
-      'application/x-gzip': ['.csv.gz'],
+      'application/gzip':   ['.gz', '.csv.gz'],
+      'application/x-gzip': ['.gz', '.csv.gz'],
+      'application/octet-stream': ['.gz', '.csv.gz', '.csv', '.fits', '.fit'],
+      'text/plain':         ['.csv', '.gz', '.csv.gz']
     },
     maxFiles: 1,
     onDrop: (accepted) => {
