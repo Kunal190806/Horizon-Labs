@@ -20,6 +20,7 @@ class StatisticalValidation:
     shape_flag: bool                # True = non-trapezoidal shape
     depth_stability_flag: bool      # True = depth varies between transits
     snr_flag: bool                  # True = SNR below threshold
+    duration_flag: bool             # True = transit duration inconsistent with period
     details: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -61,9 +62,13 @@ def validate_candidate(
     flags["depth_cv"] = depth_cv
     flags["depth_stability_flag"] = depth_stability_flag
 
-    # ── 5. Duration Consistency (Kepler's 3rd Law rough check) ───────────────
-    duration_check = _duration_check(period, duration)
-    flags["duration_ratio"] = duration_check
+    # ── 5. Transit Duration Consistency ─────────────────────────────────────
+    duration_flag, duration_ratio, max_physical_duration = _duration_consistency(
+        period, duration, depth
+    )
+    flags["duration_ratio"] = duration_ratio
+    flags["max_physical_duration_days"] = max_physical_duration
+    flags["duration_flag"] = duration_flag
 
     # ── Composite Statistical Score ──────────────────────────────────────────
     penalties = 0.0
@@ -75,7 +80,7 @@ def validate_candidate(
         penalties += 0.20
     if depth_stability_flag:
         penalties += 0.15
-    if duration_check > 0.5:  # unphysically long transit
+    if duration_flag:
         penalties += 0.10
 
     score = max(0.0, min(1.0, 1.0 - penalties))
@@ -86,6 +91,7 @@ def validate_candidate(
         shape_flag=shape_flag,
         depth_stability_flag=depth_stability_flag,
         snr_flag=snr_flag,
+        duration_flag=duration_flag,
         details=flags,
     )
 
@@ -201,10 +207,48 @@ def _depth_stability_test(
     return cv > cv_threshold, cv
 
 
+def _duration_consistency(
+    period: float,
+    duration: float,
+    depth: float,
+    stellar_density_solar: float = 1.0,
+) -> tuple[bool, float, float]:
+    """
+    Check transit duration consistency using Kepler's 3rd Law approximation.
+
+    For a central transit, the maximum physical duration (days) is:
+        T_max = (P/pi) * (rho_sun/rho_star)^(1/3) * (period_days/365)^(1/3)
+
+    We use a simplified solar-density approximation as a sanity check.
+    Returns (flag, ratio, max_physical_days).
+    Flag is True if duration is unphysically long.
+    """
+    import math
+    if period <= 0 or duration <= 0:
+        return False, 0.0, 0.0
+
+    # Simplified Seager & Mallen-Ornelas (2003) estimate for max transit duration
+    # T_max ≈ (period / pi) * (rho_sun/rho_star)^(1/3)
+    # We use rho_star ~ rho_sun as a baseline assumption
+    # T_max in days = period^(1/3) * 0.076 * (1/rho_star_solar)^(1/3)
+    # Simplified: T_max ≈ 0.076 * period^(1/3) days (for solar-like star)
+    max_physical = 0.076 * (period ** (1.0 / 3.0))
+
+    ratio = duration / max_physical if max_physical > 0 else 10.0
+    # Flag as suspicious if duration > 2x the physical maximum
+    flag = ratio > 2.0
+    logger.debug(
+        "Duration consistency: T=%.4fd, T_max_phys=%.4fd, ratio=%.2f, flag=%s",
+        duration, max_physical, ratio, flag
+    )
+    return flag, ratio, max_physical
+
+
 def _duration_check(period: float, duration: float) -> float:
     """
     Returns the ratio duration / period.
     Physical transits should have duration << period.
     Ratios > 0.5 are unphysical.
+    (Kept for backward compatibility.)
     """
     return duration / period if period > 0 else 1.0
