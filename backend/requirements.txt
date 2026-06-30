@@ -6,22 +6,22 @@ websockets==12.0
 httpx==0.27.0
 
 # ─── Database ─────────────────────────────────────────────────────────────────
-sqlalchemy[asyncio]==2.0.30
-asyncpg==0.29.0
+sqlalchemy[asyncio]>=2.0.36
+# asyncpg==0.29.0
 aiosqlite==0.20.0
 alembic==1.13.1
-psycopg2-binary==2.9.9  # Requires PostgreSQL headers (only needed for Docker/PostgreSQL mode)
+# psycopg2-binary==2.9.9  # Requires PostgreSQL headers (only needed for Docker/PostgreSQL mode)
 
 # ─── Cache ────────────────────────────────────────────────────────────────────
 redis[asyncio]==5.0.4
 
 # ─── Config / Validation ──────────────────────────────────────────────────────
-pydantic==2.7.1
-pydantic-settings==2.3.0
+pydantic
+pydantic-settings
 python-dotenv==1.0.1
 
 # ─── Scientific Core ──────────────────────────────────────────────────────────
-numpy==1.26.4
+numpy
 # scipy removed (using custom running mean & heuristics fallbacks)
 # pandas removed (using pure python csv parser)
 # astropy removed (fits parsing disabled on vercel)

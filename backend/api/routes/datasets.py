@@ -138,10 +138,15 @@ async def upload_dataset(
     db: AsyncSession = Depends(get_db),
 ):
     """Upload a custom FITS or CSV light curve file."""
-    allowed_types = {".fits", ".fit", ".csv"}
-    suffix = Path(file.filename or "").suffix.lower()
+    allowed_types = {".fits", ".fit", ".csv", ".csv.gz", ".gz"}
+    filename = file.filename or ""
+    # Handle double extension like .csv.gz
+    if filename.lower().endswith(".csv.gz"):
+        suffix = ".csv.gz"
+    else:
+        suffix = Path(filename).suffix.lower()
     if suffix not in allowed_types:
-        raise HTTPException(400, f"Unsupported file type '{suffix}'. Allowed: {allowed_types}")
+        raise HTTPException(400, f"Unsupported file type '{suffix}'. Allowed: .fits, .fit, .csv, .csv.gz")
 
     content = await file.read()
     if len(content) > settings.max_upload_size_bytes:
@@ -158,25 +163,31 @@ async def upload_dataset(
     # Parse to extract metadata
     num_points, time_start, time_end = None, None, None
     try:
-        if suffix == ".csv":
+        if suffix in (".csv", ".csv.gz", ".gz"):
             import csv
-            with open(fpath, "r", encoding="utf-8") as f:
-                reader = csv.reader(f)
-                header = next(reader, None)
-                if header:
-                    time_idx = next((i for i, c in enumerate(header) if c.lower() in ["time", "t", "bjd", "jd"]), 0)
-                    time_arr = []
-                    for row in reader:
-                        if len(row) > time_idx:
-                            try:
-                                val = float(row[time_idx])
-                                time_arr.append(val)
-                            except ValueError:
-                                pass
-                    if time_arr:
-                        num_points = len(time_arr)
-                        time_start = float(time_arr[0])
-                        time_end = float(time_arr[-1])
+            import gzip
+            import io
+            if suffix in (".csv.gz", ".gz"):
+                raw = gzip.decompress(content)
+                text = raw.decode("utf-8", errors="replace")
+            else:
+                text = content.decode("utf-8", errors="replace")
+            reader = csv.reader(io.StringIO(text))
+            header = next(reader, None)
+            if header:
+                time_idx = next((i for i, c in enumerate(header) if c.lower() in ["time", "t", "bjd", "jd"]), 0)
+                time_arr = []
+                for row in reader:
+                    if len(row) > time_idx:
+                        try:
+                            val = float(row[time_idx])
+                            time_arr.append(val)
+                        except ValueError:
+                            pass
+                if time_arr:
+                    num_points = len(time_arr)
+                    time_start = float(time_arr[0])
+                    time_end = float(time_arr[-1])
         elif suffix in {".fits", ".fit"}:
             raise HTTPException(400, "FITS file parsing is disabled in Vercel Serverless environment due to bundle size limits. Please upload a CSV file.")
     except Exception as e:
@@ -188,7 +199,7 @@ async def upload_dataset(
         tic_id=tic_id,
         source="upload",
         file_path=fpath,
-        file_type=suffix.lstrip("."),
+        file_type="csv" if suffix in (".csv", ".csv.gz", ".gz") else suffix.lstrip("."),
         num_points=num_points,
         time_start=time_start,
         time_end=time_end,
@@ -233,11 +244,20 @@ async def preview_dataset(dataset_id: str, max_points: int = 5000, db: AsyncSess
         from astropy.io import fits
 
         ftype = (dataset.file_type or "").lower()
+        fpath_lower = (dataset.file_path or "").lower()
         if ftype in ("fits", "fit"):
             raise HTTPException(400, "FITS previews are disabled in Vercel Serverless environment.")
         else:
             import csv
-            with open(dataset.file_path, "r", encoding="utf-8") as f:
+            import gzip
+            import io
+            is_gz = fpath_lower.endswith(".csv.gz") or fpath_lower.endswith(".gz")
+            if is_gz:
+                with gzip.open(dataset.file_path, "rt", encoding="utf-8") as f:
+                    text = f.read()
+                reader = csv.reader(io.StringIO(text))
+            else:
+                f = open(dataset.file_path, "r", encoding="utf-8")
                 reader = csv.reader(f)
                 header = next(reader, None)
                 if not header:

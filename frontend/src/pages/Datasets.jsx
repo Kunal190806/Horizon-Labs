@@ -7,7 +7,8 @@ import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
 import {
   Search, Download, Upload, Trash2, Eye, Database,
-  CheckCircle, Loader2, FolderOpen, Satellite, CheckCircle2
+  CheckCircle, Loader2, FolderOpen, Satellite, CheckCircle2,
+  FileText, FileArchive, X, Zap
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -97,6 +98,34 @@ function SearchPanel({ onSelect }) {
   )
 }
 
+function FileIcon({ filename }) {
+  if (!filename) return <FileText size={32} className="text-gray-500" />
+  const lower = filename.toLowerCase()
+  if (lower.endsWith('.csv.gz') || lower.endsWith('.gz')) {
+    return <FileArchive size={32} className="text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
+  }
+  if (lower.endsWith('.csv')) {
+    return <FileText size={32} className="text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+  }
+  return <FileText size={32} className="text-cosmic-cyan" />
+}
+
+function FileTypeBadge({ filename }) {
+  if (!filename) return null
+  const lower = filename.toLowerCase()
+  if (lower.endsWith('.csv.gz')) return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20">
+      <Zap size={10} /> CSV.GZ · Compressed
+    </span>
+  )
+  if (lower.endsWith('.csv')) return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-widest bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
+      <FileText size={10} /> CSV · Plain Text
+    </span>
+  )
+  return null
+}
+
 function UploadPanel({ onUpload }) {
   const [name, setName] = useState('')
   const [ticId, setTicId] = useState('')
@@ -105,15 +134,26 @@ function UploadPanel({ onUpload }) {
   const qc = useQueryClient()
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: { 'application/fits': ['.fits', '.fit'], 'text/csv': ['.csv'] },
+    accept: {
+      'application/fits':   ['.fits', '.fit'],
+      'text/csv':           ['.csv'],
+      'application/gzip':   ['.gz'],
+      'application/x-gzip': ['.csv.gz'],
+    },
     maxFiles: 1,
-    onDrop: (accepted) => { setFile(accepted[0]); if (!name) setName(accepted[0].name.replace(/\.[^.]+$/, '')) },
+    onDrop: (accepted) => {
+      if (!accepted.length) return
+      setFile(accepted[0])
+      if (!name) setName(accepted[0].name.replace(/\.csv\.gz$|\.csv$|\.fits?$/i, ''))
+    },
   })
+
+  const clearFile = (e) => { e.stopPropagation(); setFile(null); setName(''); setTicId('') }
 
   const handleUpload = async () => {
     if (!file || !name.trim()) { toast.error('File and name are required'); return }
     setUploading(true)
-    const tid = toast.loading('Uploading to secure server...')
+    const tid = toast.loading('Transmitting to secure server...')
     const fd = new FormData()
     fd.append('file', file)
     fd.append('name', name)
@@ -129,34 +169,133 @@ function UploadPanel({ onUpload }) {
   }
 
   return (
-    <div className="space-y-6">
-      <div {...getRootProps()} className={clsx(
-        'border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-300 relative overflow-hidden',
-        isDragActive ? 'border-cosmic-cyan bg-cosmic-cyan/10 scale-[0.98]' : 'border-white/20 hover:border-cosmic-cyan/50 hover:bg-white/5'
-      )}>
-        {isDragActive && <div className="absolute inset-0 bg-cosmic-cyan/5 blur-xl pointer-events-none"></div>}
+    <div className="space-y-5">
+
+      {/* Dropzone */}
+      <div
+        {...getRootProps()}
+        className={clsx(
+          'relative border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 overflow-hidden group',
+          isDragActive
+            ? 'border-cosmic-cyan bg-cosmic-cyan/10 scale-[0.99]'
+            : file
+            ? 'border-emerald-400/40 bg-emerald-400/5 hover:border-emerald-400/60'
+            : 'border-white/20 hover:border-cosmic-cyan/50 hover:bg-white/[0.03]'
+        )}
+      >
         <input {...getInputProps()} />
-        <Upload size={36} className={clsx('mx-auto mb-4 transition-colors', isDragActive ? 'text-cosmic-cyan drop-shadow-glow-cyan' : 'text-gray-500')} />
+
+        {/* Animated glow when drag active */}
+        {isDragActive && (
+          <div className="absolute inset-0 bg-cosmic-cyan/5 blur-3xl pointer-events-none" />
+        )}
+
         {file ? (
-          <div className="relative z-10">
-            <div className="font-display font-semibold text-white text-lg">{file.name}</div>
-            <div className="text-xs text-cosmic-cyan mt-1 font-mono">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
-          </div>
+          /* File selected state */
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center gap-4 p-5"
+          >
+            <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+              <FileIcon filename={file.name} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-display font-semibold text-white text-sm truncate mb-1.5" title={file.name}>
+                {file.name}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <FileTypeBadge filename={file.name} />
+                <span className="text-[10px] text-gray-500 font-mono">
+                  {file.size < 1024 * 1024
+                    ? `${(file.size / 1024).toFixed(1)} KB`
+                    : `${(file.size / 1024 / 1024).toFixed(2)} MB`}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={clearFile}
+              className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-all"
+              title="Remove file"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
         ) : (
-          <div className="relative z-10">
-            <div className="text-base text-gray-300 font-display">Drop a FITS or CSV file here, or click to browse terminal</div>
-            <div className="text-xs text-gray-500 mt-2 font-mono tracking-widest">SUPPORTED: .FITS, .FIT, .CSV</div>
+          /* Empty state */
+          <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
+            <motion.div
+              animate={isDragActive ? { scale: 1.15, rotate: 5 } : { scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+              className="mb-4"
+            >
+              <Upload
+                size={36}
+                className={clsx(
+                  'transition-colors',
+                  isDragActive ? 'text-cosmic-cyan drop-shadow-[0_0_12px_rgba(34,211,238,0.8)]' : 'text-gray-500 group-hover:text-gray-400'
+                )}
+              />
+            </motion.div>
+            <p className="text-sm text-gray-300 font-display mb-2">
+              {isDragActive ? 'Release to load file' : 'Drop a file here, or click to browse'}
+            </p>
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-white/5 text-gray-500 border border-white/10">.CSV</span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-amber-400/10 text-amber-400 border border-amber-400/20">.CSV.GZ</span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-white/5 text-gray-500 border border-white/10">.FITS</span>
+            </div>
           </div>
         )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <input className="input h-12" placeholder="DATASET NAME (REQUIRED)" value={name} onChange={e => setName(e.target.value)} />
-        <input className="input h-12" placeholder="TIC ID (OPTIONAL)" value={ticId} onChange={e => setTicId(e.target.value)} />
+
+      {/* Metadata inputs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="relative">
+          <label className="absolute -top-2 left-3 text-[10px] text-gray-500 font-mono uppercase tracking-widest bg-space-900 px-1">Dataset Name *</label>
+          <input
+            className="input h-12 pt-1 w-full"
+            placeholder="e.g. TIC 261136679 S14"
+            value={name}
+            onChange={e => setName(e.target.value)}
+          />
+        </div>
+        <div className="relative">
+          <label className="absolute -top-2 left-3 text-[10px] text-gray-500 font-mono uppercase tracking-widest bg-space-900 px-1">TIC ID (optional)</label>
+          <input
+            className="input h-12 pt-1 w-full"
+            placeholder="e.g. 261136679"
+            value={ticId}
+            onChange={e => setTicId(e.target.value)}
+          />
+        </div>
       </div>
-      <button onClick={handleUpload} disabled={!file || uploading} className="btn-primary w-full justify-center h-14 text-base">
-        {uploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-        TRANSMIT DATASET
-      </button>
+
+      {/* Upload button */}
+      <motion.button
+        whileHover={!uploading && file ? { scale: 1.01 } : {}}
+        whileTap={!uploading && file ? { scale: 0.98 } : {}}
+        onClick={handleUpload}
+        disabled={!file || uploading || !name.trim()}
+        className={clsx(
+          'btn-primary w-full justify-center h-14 text-base relative overflow-hidden transition-all',
+          (!file || !name.trim()) && 'opacity-40 cursor-not-allowed'
+        )}
+      >
+        {uploading ? (
+          <><Loader2 size={18} className="animate-spin" /> Transmitting...</>
+        ) : (
+          <><Upload size={18} /> TRANSMIT DATASET</>
+        )}
+        {uploading && (
+          <motion.div
+            className="absolute bottom-0 left-0 h-0.5 bg-cosmic-cyan/70"
+            initial={{ width: '0%' }}
+            animate={{ width: '100%' }}
+            transition={{ duration: 3, ease: 'linear' }}
+          />
+        )}
+      </motion.button>
     </div>
   )
 }

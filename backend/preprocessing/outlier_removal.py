@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from typing import Tuple
 
 import numpy as np
-from astropy.stats import sigma_clip
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +40,17 @@ def sigma_clip_outliers(
     sigma      : rejection threshold in standard deviations
     maxiters   : maximum clipping iterations
     """
-    clipped = sigma_clip(flux, sigma=sigma, maxiters=maxiters, masked=True)
-    # mask = True means the value is MASKED (i.e. bad), so invert
-    good_mask = ~clipped.mask
+    good_mask = np.ones_like(flux, dtype=bool)
+    for _ in range(maxiters):
+        current_flux = flux[good_mask]
+        if len(current_flux) == 0:
+            break
+        mean = np.mean(current_flux)
+        std = np.std(current_flux)
+        new_mask = np.abs(flux - mean) <= sigma * std
+        if np.array_equal(new_mask, good_mask):
+            break
+        good_mask = new_mask
 
     num_removed = int(np.sum(~good_mask))
 
