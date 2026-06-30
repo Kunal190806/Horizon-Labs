@@ -146,6 +146,31 @@ async def job_status_ws(websocket: WebSocket, job_id: str):
         manager.disconnect(job_id)
 
 
+
+# ── Serve Frontend Static Files & SPA Routing ──────────────────────────────────
+import os
+from fastapi.responses import FileResponse
+
+frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+
+@app.get("/{catchall:path}", tags=["System"])
+async def serve_frontend(catchall: str):
+    # Check if the requested file exists in the frontend dist folder (assets, logo, favicon, etc)
+    file_path = os.path.join(frontend_dist, catchall)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+        
+    # Otherwise fallback to index.html for React SPA client-side routing
+    index_file = os.path.join(frontend_dist, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    return {
+        "message": "Welcome to Horizon API.",
+        "status": "online",
+        "frontend": "Not built yet. Run 'npm run build' in 'frontend/' directory to serve UI."
+    }
+
+
 if __name__ == "__main__":
     uvicorn.run(
         "backend.main:app",
