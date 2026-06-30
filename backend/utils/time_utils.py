@@ -38,7 +38,7 @@ def bjd_to_iso(bjd: float) -> str:
     Uses astropy if available, falls back to a rough approximation.
     """
     try:
-        from astropy.time import Time
+        from astropy.time import Time  # type: ignore[import-untyped]
         t = Time(bjd, format="bjd", scale="tdb")
         return t.iso
     except ImportError:
