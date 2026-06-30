@@ -38,10 +38,11 @@ def bjd_to_iso(bjd: float) -> str:
     Uses astropy if available, falls back to a rough approximation.
     """
     try:
-        from astropy.time import Time  # type: ignore[import-untyped]
-        t = Time(bjd, format="bjd", scale="tdb")
+        import importlib
+        astropy_time = importlib.import_module("astropy.time")
+        t = astropy_time.Time(bjd, format="bjd", scale="tdb")
         return t.iso
-    except ImportError:
+    except (ImportError, AttributeError, ModuleNotFoundError):
         # Approximate: BJD 2451545.0 ≈ J2000.0 = 2000-01-01T12:00:00
         j2000_bjd = 2_451_545.0
         days_from_j2000 = bjd - j2000_bjd

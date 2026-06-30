@@ -257,7 +257,8 @@ class TransitClassifier:
     ) -> Optional[Dict[str, Any]]:
         """Compute SHAP feature importance values."""
         try:
-            import shap  # type: ignore[import-untyped]
+            import importlib
+            shap = importlib.import_module("shap")
             if self._model is None:
                 return None
             # Use a small background for the kernel explainer

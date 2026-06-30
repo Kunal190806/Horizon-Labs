@@ -29,7 +29,8 @@ router = APIRouter(prefix="/api/datasets", tags=["Datasets"])
 async def search_mast(tic_id: str, sectors: Optional[int] = None):
     """Search the MAST archive for available TESS observations for a given TIC ID."""
     try:
-        import lightkurve as lk  # type: ignore[import-untyped]
+        import importlib
+        lk = importlib.import_module("lightkurve")
         results = lk.search_lightcurve(f"TIC {tic_id}", mission="TESS")
         if len(results) == 0:
             return []
@@ -67,7 +68,8 @@ async def download_tess(
 ):
     """Download a TESS light curve from MAST and store it locally."""
     try:
-        import lightkurve as lk  # type: ignore[import-untyped]
+        import importlib
+        lk = importlib.import_module("lightkurve")
         import numpy as np
 
         search_query = f"TIC {tic_id}"
@@ -250,9 +252,7 @@ async def preview_dataset(dataset_id: str, max_points: int = 5000, db: AsyncSess
         raise HTTPException(404, "Dataset file not found on disk.")
 
     try:
-        import pandas as pd  # type: ignore[import-untyped]
         import numpy as np
-        from astropy.io import fits  # type: ignore[import-untyped]
 
         ftype = (dataset.file_type or "").lower()
         fpath_lower = (dataset.file_path or "").lower()
