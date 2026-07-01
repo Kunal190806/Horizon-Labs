@@ -99,13 +99,7 @@ async def health_check():
     }
 
 
-@app.get("/", tags=["System"])
-async def root():
-    return {
-        "message": f"Welcome to {settings.app_name}",
-        "docs": "/docs",
-        "version": settings.app_version,
-    }
+
 
 
 # ── WebSocket: Real-time Job Status ────────────────────────────────────────────
