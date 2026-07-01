@@ -103,10 +103,10 @@ class Settings(BaseSettings):
             val = v.strip()
             if not val:
                 return None
-            try:
-                return int(val)
-            except ValueError:
-                pass
+            import re
+            match = re.search(r'-?\d+', val)
+            if match:
+                return int(match.group(0))
         return v
 
     @field_validator(
@@ -124,10 +124,10 @@ class Settings(BaseSettings):
             val = v.strip()
             if not val:
                 return None
-            try:
-                return float(val)
-            except ValueError:
-                pass
+            import re
+            match = re.search(r'-?\d+(?:\.\d+)?', val)
+            if match:
+                return float(match.group(0))
         return v
 
 
