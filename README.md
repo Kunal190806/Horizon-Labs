@@ -1,3 +1,12 @@
+---
+title: Horizon Exoplanet
+emoji: 🔭
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 10000
+---
+
 <div align="center">
 
 # 🔭 Horizon — Exoplanet Detection & Characterization Platform
