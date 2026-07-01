@@ -78,11 +78,80 @@ class Settings(BaseSettings):
     # ── Validation thresholds ─────────────────────────────────────────────────
     confidence_threshold: float = 0.5  # ML confidence above which → CANDIDATE
 
+    # ── Coercion field validators for environment variables ────────────────────
+    @field_validator("debug", "use_sqlite", "use_redis", mode="before")
+    @classmethod
+    def coerce_bool(cls, v):
+        if isinstance(v, str):
+            val = v.strip().lower()
+            if val in ("true", "1", "yes", "on", "t"):
+                return True
+            if val in ("false", "0", "no", "off", "f", ""):
+                return False
+        return v
+
+    @field_validator(
+        "cache_ttl_seconds",
+        "mast_timeout",
+        "input_length",
+        "max_upload_size_mb",
+        mode="before",
+    )
+    @classmethod
+    def coerce_int(cls, v):
+        if isinstance(v, str):
+            val = v.strip()
+            if not val:
+                return None
+            try:
+                return int(val)
+            except ValueError:
+                pass
+        return v
+
+    @field_validator(
+        "tls_min_period",
+        "tls_max_period",
+        "bls_min_period",
+        "bls_max_period",
+        "snr_threshold",
+        "confidence_threshold",
+        mode="before",
+    )
+    @classmethod
+    def coerce_float(cls, v):
+        if isinstance(v, str):
+            val = v.strip()
+            if not val:
+                return None
+            try:
+                return float(val)
+            except ValueError:
+                pass
+        return v
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Return cached application settings."""
-    return Settings()
+    import sys
+    from pydantic import ValidationError
+    try:
+        return Settings()
+    except ValidationError as e:
+        sys.stderr.write("\n" + "="*80 + "\n")
+        sys.stderr.write("❌ CONFIGURATION VALIDATION ERROR\n")
+        sys.stderr.write("Failed to validate settings from environment variables/dotenv file.\n\n")
+        for err in e.errors():
+            field = " -> ".join(str(loc) for loc in err.get("loc", []))
+            input_val = err.get("input")
+            msg = err.get("msg")
+            sys.stderr.write(f"  Field: {field}\n")
+            sys.stderr.write(f"  Value: {repr(input_val)}\n")
+            sys.stderr.write(f"  Error: {msg}\n")
+            sys.stderr.write("-" * 40 + "\n")
+        sys.stderr.write("="*80 + "\n\n")
+        raise e
 
 
 # Convenience singleton
