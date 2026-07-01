@@ -264,11 +264,11 @@ async def preview_dataset(dataset_id: str, max_points: int = 5000, db: AsyncSess
             import io
             is_gz = fpath_lower.endswith(".csv.gz") or fpath_lower.endswith(".gz")
             if is_gz:
-                with gzip.open(dataset.file_path, "rt", encoding="utf-8") as f:
-                    text = f.read()
-                reader = csv.reader(io.StringIO(text))
+                f = gzip.open(dataset.file_path, "rt", encoding="utf-8", errors="replace")
             else:
-                f = open(dataset.file_path, "r", encoding="utf-8")
+                f = open(dataset.file_path, "r", encoding="utf-8", errors="replace")
+                
+            with f:
                 reader = csv.reader(f)
                 header = next(reader, None)
                 if not header:

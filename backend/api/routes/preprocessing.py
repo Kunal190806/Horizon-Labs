@@ -32,7 +32,15 @@ async def _load_light_curve(dataset: Dataset):
         raise ValueError("FITS parsing is disabled in Vercel Serverless environment.")
     else:
         import csv
-        with open(fpath, "r", encoding="utf-8") as f:
+        import gzip
+        
+        is_gz = fpath.lower().endswith(".gz") or fpath.lower().endswith(".csv.gz")
+        if is_gz:
+            f = gzip.open(fpath, "rt", encoding="utf-8", errors="replace")
+        else:
+            f = open(fpath, "r", encoding="utf-8", errors="replace")
+
+        with f:
             reader = csv.reader(f)
             header = next(reader, None)
             if not header:
@@ -54,8 +62,6 @@ async def _load_light_curve(dataset: Dataset):
                         pass
             
             return np.array(time_list), np.array(flux_list), np.array(err_list) if err_list else None
-
-    raise ValueError(f"Could not parse light curve from {fpath}")
 
 
 @router.post("/{dataset_id}", response_model=PreprocessingResult, summary="Run preprocessing pipeline")
